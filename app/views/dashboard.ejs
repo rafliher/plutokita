@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Beranda | PLUTO KITA</title>
+    <%- include('templates/heads') %>
+</head>
+
+<body>
+
+    <%- include('templates/header', {user: {}}); %>
+
+    <!-- Main Content -->
+    <div class="container-fluid d-flex" style="padding-left: 0; min-height: calc(100vh - 200px); background-color: #dedede;">
+        <%- include('templates/sidebar', {activeSidebar: 'dashboard'}) %>
+        <div class="col-10">
+            <div class="d-flex justify-content-center align-items-center" style="flex-direction: column;">
+                <h5 style="margin-top: 50px;">Selamat datang di</h5>
+                <img src="/images/banner.png" alt="" srcset="" style="height: 250px;">
+                <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script> 
+                
+                <dotlottie-player src="https://lottie.host/3545f790-b780-4609-9cbd-8d30b14a0ed3/NJdnoJcKzc.json" background="transparent" speed="1" style="height: 200px;" loop autoplay></dotlottie-player>
+            </div>
+        </div>
+    </div>
+
+    <%- include('templates/footer') %>
+    <%- include('templates/scripts') %>
+</body>
+
+</html>

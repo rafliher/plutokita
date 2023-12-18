@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Manajemen Workstation | PLUTO KITA</title>
+    <%- include('templates/heads') %>
+
+    <style>
+        .dataTables_wrapper {
+            padding: 15px 20px;
+            border-radius: 10px;
+            background-color: white;
+            margin-bottom: 20px;
+        }
+
+        .drag-drop-area {
+            border: dashed 3px grey;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <%- include('templates/header', { user: {} }); %>
+
+    <!-- Main Content -->
+    <div class="container-fluid d-flex" style="padding-left: 0; min-height: calc(100vh - 200px); background-color: #dedede;">
+        <%- include('templates/sidebar', { activeSidebar: 'workstationManagement' }) %>
+        <div class="col-10">
+            <div style="margin: 10px; padding: 10px; border-radius: 5px;background-color: #efefef;">
+                <div class="container d-flex justify-content-between mt-3">
+                    <h3>Manajemen Workstation</h3>
+                    <div class="mb-3">
+                        <button class="btn btn-primary" id="addWorkstationBtn" data-toggle="modal" data-target="#addWorkstationModal">Tambah Workstation</button>
+                    </div>
+                </div>
+
+                <!-- Workstation Table -->
+                <table id="workstationTable" class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Location</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- DataTable content will be added dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <%- include('templates/footer') %>
+    <%- include('templates/scripts') %>
+    <script>
+        $(document).ready(function () {
+            // Function to fetch workstation data
+            function fetchWorkstationData() {
+                $.ajax({
+                    type: 'GET',
+                    url: '/api/workstation',
+                    success: function (response) {
+                        // Populate DataTable with the fetched data
+                        if (response.data && response.data.length > 0) {
+                            $('#workstationTable tbody').empty(); // Clear existing rows
+                            response.data.forEach(function (workstation) {
+                                $('#workstationTable tbody').append(`
+                                    <tr>
+                                        <td>${workstation.id}</td>
+                                        <td>${workstation.location.charAt(0).toUpperCase() + workstation.location.slice(1)}</td>
+                                        <td>
+                                            <button class="btn btn-danger" onclick="deleteWorkstation('${workstation.id}')">Hapus</button>
+                                            <button class="btn btn-info" onclick="updateWorkstation('${workstation.id}','${workstation.location}')">Sunting</button>
+                                            <!-- You can add other action buttons as needed -->
+                                        </td>
+                                    </tr>
+                                `);
+                            });
+                            // Initialize DataTable
+                            $('#workstationTable').DataTable();
+                        }
+                    },
+                    error: function () {
+                        console.error('Failed to fetch workstation data.');
+                    }
+                });
+            }
+
+            // Function to handle delete workstation
+            window.deleteWorkstation = function (id) {
+                // Show confirmation prompt
+                Swal.fire({
+                    text: 'Apakah ingin menghapus workstation ini?',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true,
+                    icon: 'warning',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Send DELETE request to /api/workstation/${id}
+                        fetch(`/api/workstation/${id}`, {
+                            method: 'DELETE',
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Show success alert
+                                    Swal.fire({
+                                        title: 'Berhasil',
+                                        text: data.message,
+                                        icon: 'success'
+                                    }).then(() => {
+                                        // Refresh the workstation data after successful deletion
+                                        fetchWorkstationData();
+                                    });
+                                } else {
+                                    // Show error alert
+                                    Swal.fire({
+                                        title: 'Gagal',
+                                        text: data.message,
+                                        icon: 'error'
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error deleting workstation:', error);
+                                // Show error alert
+                                Swal.fire({
+                                    title: 'Gagal',
+                                    text: 'Terjadi kesalahan saat menghapus workstation.',
+                                    icon: 'error'
+                                });
+                            });
+                    }
+                });
+            };
+
+            window.updateWorkstation = function (id, location) {
+                Swal.fire({
+                    title: 'Sunting workstation',
+                    html: `
+                        <p style="margin: 10px 0px 5px 0px;">ID</p>
+                        <input type="text" id="workstationId" value="${id}" class="swal2-input" disabled style="width: 350px; margin-top: 0px;">
+                        <p style="margin: 10px 0px 5px 0px;">Lokasi</p>
+                        <select id="workstationLocation" class="swal2-input" style="width: 350px; margin: 0px 0px 10px 0px;">
+                            <option value="warnet" ${location === 'warnet' ? 'selected' : ''}>Warnet</option>
+                            <option value="dewan" ${location === 'dewan' ? 'selected' : ''}>Dewan</option>
+                            <option value="tengah" ${location === 'tengah' ? 'selected' : ''}>Tengah</option>
+                        </select>
+                    `,
+                    focusConfirm: false,
+                    confirmButtonText: 'Simpan',
+                    showCancelButton: true,
+                    cancelButtonText: 'Batal',
+                    preConfirm: () => {
+                        const updatedLocation = document.getElementById('workstationLocation').value;
+                        return fetch(`/api/workstation/${id}`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                location: updatedLocation,
+                            }),
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Show success alert
+                                    Swal.fire({
+                                        title: 'Berhasil',
+                                        text: data.message,
+                                        icon: 'success'
+                                    }).then(() => {
+                                        // Refresh the workstation data after successful update
+                                        fetchWorkstationData();
+                                    });
+                                } else {
+                                    // Show error alert
+                                    Swal.fire({
+                                        title: 'Gagal',
+                                        text: data.message,
+                                        icon: 'error'
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                Swal.showValidationMessage(`Request failed: ${error}`);
+                            });
+                    },
+                    allowOutsideClick: () => !Swal.isLoading(),
+                });
+            };           
+            // Fetch and update DataTable on page load
+            fetchWorkstationData();
+
+            $('#addWorkstationBtn').click(function () {
+                Swal.fire({
+                    title: 'Tambah Workstation',
+                    html: `
+                        <p style="margin: 10px 0px 5px 0px;">ID</p>
+                        <input type="text" id="newWorkstationID" class="swal2-input" style="width: 350px; margin: 0px 0px 10px 0px;">
+                        <p style="margin: 10px 0px 5px 0px;">Lokasi</p>
+                        <select id="newWorkstationLocation" class="swal2-input" style="width: 350px; margin: 0px 0px 10px 0px;">
+                            <option value="warnet">Warnet</option>
+                            <option value="dewan">Dewan</option>
+                            <option value="tengah">Tengah</option>
+                        </select>
+                    `,
+                    focusConfirm: false,
+                    confirmButtonText: 'Simpan',
+                    showCancelButton: true,
+                    cancelButtonText: 'Batal',
+                    preConfirm: () => {
+                        const id = document.getElementById('newWorkstationID').value;
+                        const location = document.getElementById('newWorkstationLocation').value;
+                        return fetch('/api/workstation', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                id: id,
+                                location: location,
+                            }),
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Show success alert
+                                    Swal.fire({
+                                        title: 'Berhasil',
+                                        text: data.message,
+                                        icon: 'success'
+                                    }).then(() => {
+                                        // Refresh the workstation data after successful creation
+                                        fetchWorkstationData();
+                                    });
+                                } else {
+                                    // Show error alert
+                                    Swal.fire({
+                                        title: 'Gagal',
+                                        text: data.message,
+                                        icon: 'error'
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                Swal.showValidationMessage(`Request failed: ${error}`);
+                            });
+                    },
+                    allowOutsideClick: () => !Swal.isLoading(),
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

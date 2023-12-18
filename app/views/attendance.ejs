@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Absensi | PLUTO KITA</title>
+    <%- include('templates/heads') %>
+    <style>
+        .dataTables_wrapper {
+            padding: 15px 20px;
+            border-radius: 10px;
+            background-color: white;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <%- include('templates/header', {user: {}}); %>
+
+    <!-- Main Content -->
+    <div class="container-fluid d-flex" style="padding-left: 0; min-height: calc(100vh - 200px); background-color: #dedede;">
+        <%- include('templates/sidebar', {activeSidebar: 'attendance'}) %>
+        <div class="col-10">
+            <div style="margin: 10px; padding: 10px; border-radius: 5px;background-color: #efefef;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 id="attendanceTitle">Absensi ${formattedToday}</h4>
+            
+                    <!-- Buttons for Download and Download All Time -->
+                    <div class="d-flex">
+                        <button class="btn btn-primary mr-2" onclick="downloadAttendance()">Download</button>
+                        <button class="btn btn-success" onclick="downloadAllTimeAttendance()">Download All Time</button>
+                    </div>
+                </div>
+            
+                <!-- Date Select -->
+                <div class="form-group mt-3">
+                    <label for="dateSelect">Tanggal Absensi</label>
+                    <input type="date" class="form-control" id="dateSelect" onchange="loadAttendanceData()">
+                    <div class="input-group-append">
+                        <div class="input-group-text" id="loader" style="display: none;">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        </div>
+                    </div>
+                </div>
+            
+                <table id="attendanceTable" class="table">
+                    <thead>
+                        <tr>
+                            <th>NPM</th>
+                            <th>Nama Lengkap</th>
+                            <th>Waktu Masuk</th>
+                            <th>Waktu Keluar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- DataTable content will be added dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <%- include('templates/footer') %>
+    <%- include('templates/scripts') %>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js" integrity="sha512-csNcFYJniKjJxRWRV1R7fvnXrycHP6qDR21mgz1ZP55xY5d+aHLfo9/FcGDQLfn2IfngbAHd8LdfsagcCqgTcQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        // Function to format today's date
+        function getFormattedToday() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = (today.getMonth() + 1).toString().padStart(2, '0');
+            const day = today.getDate().toString().padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Function to fetch attendance data
+        function loadAttendanceData() {
+            showLoader()
+            const selectedDate = document.getElementById('dateSelect').value || getFormattedToday();
+
+            // Fetch data from the server
+            $.ajax({
+                type: 'GET',
+                url: `/api/attendance?date=${selectedDate}`,
+                success: function (response) {
+                    // Update the DataTable with the fetched data
+                    updateAttendanceTable(response.data);
+
+                    // Update the title
+                    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' };
+                    document.getElementById('attendanceTitle').innerText = `Absensi ${new Date(selectedDate).toLocaleDateString('id-ID', options)}`;
+                    hideLoader();
+                },
+                error: function () {
+                    console.error('Failed to fetch attendance data.');
+                    hideLoader();
+                }
+            });
+        }
+
+        // Function to update the DataTable
+        function updateAttendanceTable(data) {
+            const tableBody = $('#attendanceTable tbody');
+            tableBody.empty();
+
+            // Populate DataTable with the fetched data
+            data.forEach(function (attendance) {
+                tableBody.append(`
+                    <tr>
+                        <td>${attendance.cadet.npm}</td>
+                        <td>${attendance.cadet.fullname}</td>
+                        <td>${attendance.enterTime}</td>
+                        <td>${attendance.leaveTime || '-'}</td>
+                    </tr>
+                `);
+            });
+
+            // Initialize DataTable
+            $('#attendanceTable').DataTable({
+                order: [[2, 'asc']]
+            });
+        }
+
+        $(document).ready(function () {
+            // Set the default date to today
+            const formattedToday = getFormattedToday();
+            document.getElementById('dateSelect').value = formattedToday;
+
+            // Load attendance data on page load
+            loadAttendanceData();
+        });
+
+        // Function to download attendance data
+        function downloadAttendance() {
+            const selectedDate = document.getElementById('dateSelect').value || getFormattedToday();
+
+            // Show loader while data is being fetched
+            showLoader();
+
+            // Fetch data from the server
+            $.ajax({
+                type: 'GET',
+                url: `/api/attendance?date=${selectedDate}`,
+                success: function (response) {
+                    // Hide loader after data is fetched
+                    hideLoader();
+
+                    // Prepare data for export
+                    const exportData = response.data.map((attendance) => ({
+                        'NPM': attendance.cadet.npm,
+                        'Nama Lengkap': attendance.cadet.fullname,
+                        'Waktu Masuk': attendance.enterTime,
+                        'Waktu Keluar': attendance.leaveTime || '-',
+                    }));
+
+                    // Create a worksheet and add the data
+                    const ws = XLSX.utils.json_to_sheet(exportData);
+
+                    // Create a workbook with a single worksheet
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, 'Absensi');
+
+                    // Save the file with the title as the name
+                    const filename = `Absensi_${new Date(selectedDate).toLocaleDateString('id-ID')}.xlsx`;
+                    XLSX.writeFile(wb, filename);
+                },
+                error: function () {
+                    console.error('Failed to fetch attendance data.');
+
+                    // Hide loader even if there's an error
+                    hideLoader();
+                }
+            });
+        }
+
+
+        // Function to download all time attendance data
+        function downloadAllTimeAttendance() {
+            const selectedDate = document.getElementById('dateSelect').value || getFormattedToday();
+
+            // Show loader while data is being fetched
+            showLoader();
+
+            // Fetch data from the server
+            $.ajax({
+                type: 'GET',
+                url: `/api/attendance?allTime=1`,
+                success: function (response) {
+                    // Hide loader after data is fetched
+                    hideLoader();
+
+                    // Prepare data for export
+                    const exportData = response.data.map((attendance) => ({
+                        'NPM': attendance.cadet.npm,
+                        'Nama Lengkap': attendance.cadet.fullname,
+                        'Waktu Masuk': attendance.enterTime,
+                        'Waktu Keluar': attendance.leaveTime || '-',
+                    }));
+
+                    // Create a worksheet and add the data
+                    const ws = XLSX.utils.json_to_sheet(exportData);
+
+                    // Create a workbook with a single worksheet
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, 'Absensi');
+
+                    // Save the file with the title as the name
+                    const filename = `Absensi.xlsx`;
+                    XLSX.writeFile(wb, filename);
+                },
+                error: function () {
+                    console.error('Failed to fetch attendance data.');
+
+                    // Hide loader even if there's an error
+                    hideLoader();
+                }
+            });
+        }
+
+        // Function to show loader
+        function showLoader() {
+            document.getElementById('loader').style.display = 'block';
+        }
+
+        // Function to hide loader
+        function hideLoader() {
+            document.getElementById('loader').style.display = 'none';
+        }
+    </script>
+</body>
+
+</html>

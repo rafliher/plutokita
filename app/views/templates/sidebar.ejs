@@ -1,0 +1,89 @@
+<style>
+    .nav-link {
+       color: #adb5bd;
+       font-weight: 500;
+       transition: color 0.3s;
+   }
+
+   .nav-link:hover {
+       color: #ffffff;
+   }
+
+   .nav-item{
+       border-radius: 3px;
+       transition: color 0.3s;
+   }
+
+   .nav-item.active{
+       background-color: #5a646e;
+   }
+
+   .nav-item:hover{
+       background-color: #5a646e;
+   }
+
+   .nav-item.active>.nav-link {
+       color: #ffffff;
+       font-weight: 700;
+   }
+</style>
+
+<nav class="col-2 sidebar" style="background-color: #343a40; padding-top: 30px;">
+    <div class="sidebar-sticky">
+        <ul class="nav flex-column">
+            <li class="nav-item <% if (activeSidebar=='dashboard') { %>active<% } %>">
+                <a class="nav-link" href="/admin">
+                    Beranda
+                </a>
+            </li>
+            <li class="nav-item <% if (activeSidebar=='attendance') { %>active<% } %>">
+                <a class="nav-link" href="/attendance">
+                    Absensi
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-toggle="collapse" href="#peminjamanSubmenu">
+                    Peminjaman
+                </a>
+                <div class="collapse <% if (activeSidebar=='bookRequest' || activeSidebar=='bookData') { %>show<% } %>" id="peminjamanSubmenu">
+                    <ul class="nav flex-column ml-3">
+                        <li class="nav-item <% if (activeSidebar=='bookRequest') { %>active<% } %>">
+                            <a class="nav-link" href="#">
+                                Permintaan Peminjaman
+                            </a>
+                        </li>
+                        <li class="nav-item <% if (activeSidebar=='bookData') { %>active<% } %>">
+                            <a class="nav-link" href="#">
+                                Data Peminjaman
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-toggle="collapse" href="#manajemenSubmenu">
+                    Manajemen
+                </a>
+                <div class="collapse  <% if (activeSidebar=='cadetManagement' || activeSidebar=='inventoryManagement' || activeSidebar=='workstationManagement') { %>show<% } %>" id="manajemenSubmenu">
+                    <ul class="nav flex-column ml-3">
+                        <li class="nav-item <% if (activeSidebar=='cadetManagement') { %>active<% } %>">
+                            <a class="nav-link" href="/cadetmanagement">
+                                Manajemen Taruna
+                            </a>
+                        </li>
+                        <li class="nav-item <% if (activeSidebar=='inventoryManagement') { %>active<% } %>">
+                            <a class="nav-link" href="/inventoryManagement">
+                                Manajemen Inventaris
+                            </a>
+                        </li>
+                        <li class="nav-item <% if (activeSidebar=='workstationManagement') { %>active<% } %>">
+                            <a class="nav-link" href="/workstationManagement">
+                                Manajemen Workstation
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+    </div>
+</nav>

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Manajemen Taruna | PLUTO KITA</title>
+    <%- include('templates/heads') %>
+
+    <style>
+        .dataTables_wrapper {
+            padding: 15px 20px;
+            border-radius: 10px;
+            background-color: white;
+            margin-bottom: 20px;
+        }
+
+        .drag-drop-area{
+            border: dashed  3px grey;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <%- include('templates/header', {user: {}}); %>
+
+    <!-- Main Content -->
+    <div class="container-fluid d-flex" style="padding-left: 0; min-height: calc(100vh - 200px); background-color: #dedede;">
+        <%- include('templates/sidebar', {activeSidebar: 'cadetManagement'}) %>
+        <div class="col-10">
+            <div style="margin: 10px; padding: 10px; border-radius: 5px;background-color: #efefef;">
+                <div class="container d-flex justify-content-between mt-3">
+                    <h3>Manajemen Taruna</h3>
+                    <div class="mb-3">
+                        <button class="btn btn-primary" id="addCadetBtn" data-toggle="modal" data-target="#addCadetModal">Tambah Taruna</button>
+                    </div>
+                </div>
+    
+                <!-- Cadet Table -->
+                <table id="cadetTable" class="table">
+                    <thead>
+                        <tr>
+                            <th>NPM</th>
+                            <th>Nama</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- DataTable content will be added dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <%- include('templates/footer') %>
+    <%- include('templates/scripts') %>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js" integrity="sha512-csNcFYJniKjJxRWRV1R7fvnXrycHP6qDR21mgz1ZP55xY5d+aHLfo9/FcGDQLfn2IfngbAHd8LdfsagcCqgTcQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        $(document).ready(function () {
+            // Function to fetch cadet data
+            function fetchCadetData() {
+                $.ajax({
+                    type: 'GET',
+                    url: '/api/cadet',
+                    success: function (response) {
+                        // Populate DataTable with the fetched data
+                        if (response.data && response.data.length > 0) {
+                            $('#cadetTable tbody').empty(); // Clear existing rows
+                            response.data.forEach(function (cadet) {
+                                $('#cadetTable tbody').append(`
+                                    <tr>
+                                        <td>${cadet.npm}</td>
+                                        <td>${cadet.fullname}</td>
+                                        <td>
+                                            <button class="btn btn-danger" onclick="deleteCadet('${cadet.npm}')">Hapus</button>
+                                            <button class="btn btn-info" onclick="updateCadet('${cadet.npm}','${cadet.fullname}')">Sunting</button>
+                                            <!-- You can add other action buttons as needed -->
+                                        </td>
+                                    </tr>
+                                `);
+                            });
+                            // Initialize DataTable
+                            $('#cadetTable').DataTable();
+                        }
+                    },
+                    error: function () {
+                        console.error('Failed to fetch cadet data.');
+                    }
+                });
+            }
+            
+            // Function to handle delete cadet
+            window.deleteCadet = function (npm) {   
+                // Show confirmation prompt
+                Swal.fire({
+                    text: 'Apakah ingin menghapus taruna ini?',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true,
+                    icon: 'warning',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Send DELETE request to /api/cadet/${npm}
+                        fetch(`/api/cadet/${npm}`, {
+                            method: 'DELETE',
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Show success alert
+                                    Swal.fire({
+                                        title: 'Berhasil',
+                                        text: data.message,
+                                        icon: 'success'
+                                    }).then(() => {
+                                        // Refresh the cadet data after successful deletion
+                                        fetchCadetData();
+                                    });
+                                } else {
+                                    // Show error alert
+                                    Swal.fire({
+                                        title: 'Gagal',
+                                        text: data.message,
+                                        icon: 'error'
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error deleting cadet:', error);
+                                // Show error alert
+                                Swal.fire({
+                                    title: 'Gagal',
+                                    text: 'Terjadi kesalahan saat menghapus taruna.',
+                                    icon: 'error'
+                                });
+                            });
+                    }
+                });
+            };
+
+            window.updateCadet = function (npm, fullname) {
+                Swal.fire({
+                    title: 'Sunting taruna',
+                    html: `
+                        <p style="margin: 10px 0px 5px 0px;">NPM</p>
+                        <input type="text" id="npm" value="${npm}" class="swal2-input" disabled style="width: 350px; margin-top: 0px;">
+                        <p style="margin: 10px 0px 5px 0px;">Nama Lengkap</p>
+                        <input type="text" id="fullname" value="${fullname}" class="swal2-input" style="width: 350px; margin: 0px 0px 10px 0px;">
+                    `,
+                    focusConfirm: false,
+                    confirmButtonText: 'Simpan',
+                    showCancelButton: true,
+                    cancelButtonText: 'Batal',
+                    preConfirm: () => {
+                        const updatedFullname = document.getElementById('fullname').value;
+                        return fetch(`/api/cadet/${npm}`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                fullname: updatedFullname,
+                            }),
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Show success alert
+                                    Swal.fire({
+                                        title: 'Berhasil',
+                                        text: data.message,
+                                        icon: 'success'
+                                    }).then(() => {
+                                        // Refresh the cadet data after successful deletion
+                                        fetchCadetData();
+                                    });
+                                } else {
+                                    // Show error alert
+                                    Swal.fire({
+                                        title: 'Gagal',
+                                        text: data.message,
+                                        icon: 'error'
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                Swal.showValidationMessage(`Request failed: ${error}`);
+                            });
+                    },
+                    allowOutsideClick: () => !Swal.isLoading(),
+                })
+            };
+    
+            // Fetch and update DataTable on page load
+            fetchCadetData();
+    
+            $('#addCadetBtn').click(function () {
+                
+                Swal.fire({
+                    title: 'Unggah Data Taruna',
+                    showCancelButton: true,
+                    html: `
+                        <div id="dropArea" class="drag-drop-area" style="padding:5px">
+                            <p class="mt-2">Seret dan lepas file xlsx atau klik di sini untuk memilih file.</p>
+                            <input type="file" id="cadetCsv" accept=".xlsx" style="display:block;border: groove 1px grey;" />
+                        </div>
+                        `,
+                        focusConfirm: false,
+                        confirmButtonText: 'Unggah',
+                        showDenyButton: true,
+                        denyButtonText: "Unduh template xlsx",
+                        denyButtonColor: "green",
+                        showLoaderOnConfirm: true,
+                    didOpen: (alert) => {
+                        // Set up drag-and-drop functionality
+                        const dropArea = document.getElementById('dropArea');
+                        dropArea.addEventListener('dragover', handleDragOver, false);
+                        dropArea.addEventListener('dragleave', handleDragLeave, false);
+                        dropArea.addEventListener('drop', handleFileSelect, false);
+        
+                        // Add click event to file input
+                        dropArea.addEventListener('click', () => {
+                            const fileInput = document.getElementById('cadetCsv');
+                            fileInput.click();
+                        });
+                    },
+                    preConfirm: () => {
+                        const fileInput = document.getElementById('cadetCsv');
+                        const file = fileInput.files[0];
+
+                        if (!file) {
+                            Swal.showValidationMessage('Mohon pilih file xlsx.');
+                        }
+
+                        // Prepare FormData to send the file
+                        const formData = new FormData();
+                        formData.append('cadetCsv', file);
+
+                        // Send POST request to /api/cadet with the FormData
+                        return fetch('/api/cadet', {
+                            method: 'POST',
+                            body: formData,
+                        })
+                            .then(response => {
+                                if (!response.ok)
+                                    Swal.showValidationMessage(response.statusText);
+                                return response.json();
+                            })
+                            .catch(error => {
+                                Swal.showValidationMessage(`Request failed: ${error}`);
+                            });
+                    },
+                    allowOutsideClick: () => !Swal.isLoading()
+                })
+                .then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({
+                            title: 'Berhasil',
+                            text: 'Data taruna berhasil diunggah.',
+                            icon: 'success'
+                        }).then(() => {
+                            // Refresh the cadet data after a successful upload
+                            fetchCadetData();
+                        });
+                    } else if(result.isDenied) {
+                        downloadTemplate()
+                    }
+                    dropArea.removeEventListener('dragover', handleDragOver);
+                    dropArea.removeEventListener('dragleave', handleDragLeave);
+                    dropArea.removeEventListener('drop', handleFileSelect);
+                    dropArea.removeEventListener('click');
+                });
+            });
+            
+
+            function handleDragOver(evt) {
+                evt.stopPropagation();
+                evt.preventDefault();
+                evt.dataTransfer.dropEffect = 'copy';
+                const dropArea = document.getElementById('dropArea');
+                dropArea.classList.add('drag-over');
+            }
+
+            function handleDragLeave(evt) {
+                evt.stopPropagation();
+                evt.preventDefault();
+                const dropArea = document.getElementById('dropArea');
+                dropArea.classList.remove('drag-over');
+            }
+
+            function handleFileSelect(evt) {
+                evt.stopPropagation();
+                evt.preventDefault();
+                const dropArea = document.getElementById('dropArea');
+                dropArea.classList.remove('drag-over');
+
+                const file = evt.dataTransfer.files[0];
+                const fileInput = document.getElementById('cadetCsv');
+                fileInput.files = evt.dataTransfer.files;
+
+                Swal.clickConfirm(); // Trigger the 'Unggah' button click
+            }
+
+            function downloadTemplate() {
+                const header = ['npm', 'fullname'];
+                const data = [header];
+
+                const blob = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(blob, XLSX.utils.aoa_to_sheet(data), 'template');
+                XLSX.writeFile(blob, 'cadet_template.xlsx', { bookSST: true, bookType: 'xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            }
+
+    
+        });
+    </script>
+</body>
+
+</html>

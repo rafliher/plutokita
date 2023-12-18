@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>PLUTO KITA</title>
+    <%- include('templates/heads') %>
+
+</head>
+
+<body>
+
+    <%- include('templates/header', {user: {}}); %>
+
+    <!-- Main Content -->
+    <div class="container-fluid" style="min-height: calc(100vh - 200px); background-color: #dedede;">
+        <div class="row">
+            <!-- Left Side - Form -->
+            <div class="col-md-6 d-flex align-items-center justify-content-center">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Kotak Presensi</h5>
+                        <form id="attendanceForm">
+                            <div class="form-group">
+                                <label for="npm">NPM:</label>
+                                <input type="number" class="form-control" id="npm" name="npm" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side - Information -->
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white mt-3">
+                            <div class="card-body d-flex align-items-center" style="flex-flow: column;">
+                                <i class="fas fa-users fa-2x"></i>
+                                <h1 class="card-title" id="totalVisitors">0</h1>
+                                <h5 class="card-text">Total Pengunjung Hari Ini</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white mt-3">
+                            <div class="card-body d-flex align-items-center" style="flex-flow: column;">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                                <h1 class="card-title" id="currentAttending">0</h1>
+                                <h5 class="card-text">Sedang di Lab PLUTO</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-info text-white mt-3">
+                            <div class="card-body d-flex align-items-center" style="flex-flow: column;">
+                                <i class="fas fa-calendar-alt fa-2x"></i>
+                                <h1 class="card-title" id="totalVisitorsThisMonth">0</h1>
+                                <h5 class="card-text">Total Pengunjung Bulan Ini</h5>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <h5 class="card-title">Sedang di PLUTO</h5>
+                        <table id="attendanceTable" class="table">
+                            <thead>
+                                <tr>
+                                    <th>NPM</th>
+                                    <th>Fullname</th>
+                                    <th>Enter Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- DataTable content will be added dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%- include('templates/footer') %>
+    <%- include('templates/scripts') %>
+
+    <script>
+        $(document).ready(function () {
+
+            // Function to fetch data from /api/attendance with attendingOnly=1
+            function fetchAttendingData() {
+                $.ajax({
+                    type: 'GET',
+                    url: '/api/attendance',
+                    data: { attendingOnly: '1' },
+                    success: function (response) {
+                        // Populate DataTable with the fetched data
+                        if (response.data && response.data.length > 0) {
+                            $('#attendanceTable tbody').empty(); // Clear existing rows
+                            response.data.forEach(function (row) {
+                                $('#attendanceTable tbody').append(`
+                                    <tr>
+                                        <td>${row.cadet.npm}</td>
+                                        <td>${row.cadet.fullname}</td>
+                                        <td>${row.enterTime}</td>
+                                    </tr>
+                                `);
+                            });
+                        // Initialize DataTable
+                            $('#attendanceTable').DataTable();
+                        }
+                    },
+                    error: function () {
+                        console.error('Failed to fetch attending data.');
+                    }
+                });
+            }
+
+            function fetchSummaryData() {
+                $.ajax({
+                    type: 'GET',
+                    url: '/api/attendance/summary',
+                    success: function (summaryResponse) {
+                        // Update card data with the fetched summary
+                        $('#totalVisitors').text(summaryResponse.totalVisitorToday);
+                        $('#currentAttending').text(summaryResponse.currentlyAttending);
+                        $('#totalVisitorsThisMonth').text(summaryResponse.totalVisitorThisMonth);
+                    },
+                    error: function () {
+                        console.error('Failed to fetch summary data.');
+                    }
+                });
+            }
+
+            // Handle form submission
+            $('#attendanceForm').submit(function (e) {
+                e.preventDefault();
+
+                // Get the NPM value
+                var npm = $('#npm').val();
+
+                // Send AJAX request to /api/attendance/check
+                $.ajax({
+                    type: 'POST',
+                    url: '/api/attendance/check',
+                    data: { npm: npm },
+                    success: function (response) {
+                        if (response.isAttending) {
+                            // Show prompt
+                            Swal.fire({
+                                text: 'Apakah kamu akan meninggalkan laboratorium?',
+                                showCancelButton: true,
+                                confirmButtonText: 'Ya',
+                                cancelButtonText: 'Batal',
+                                reverseButtons: true
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    // Send DELETE request to /api/attendance
+                                    $.ajax({
+                                        type: 'DELETE',
+                                        url: '/api/attendance',
+                                        data: { npm: npm },
+                                        success: function (deleteResponse) {
+                                            if (deleteResponse.success) {
+                                                Swal.fire({
+                                                    text: 'Terima kasih sudah berkunjung, ' + deleteResponse.fullname + '!',
+                                                    icon: 'success'
+                                                }).then(() => location.reload());
+                                            } else {
+                                                Swal.fire({
+                                                    text: deleteResponse.error,
+                                                    icon: 'error'
+                                                });
+                                            }
+                                        },
+                                        error: function () {
+                                            Swal.fire({
+                                                text: 'Failed to leave lab',
+                                                icon: 'error'
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        } else {
+                            // Send POST request to /api/attendance
+                            $.ajax({
+                                type: 'POST',
+                                url: '/api/attendance',
+                                data: { npm: npm },
+                                success: function (postResponse) {
+                                    if (postResponse.success) {
+                                        Swal.fire({
+                                            text: 'Selamat datang, ' + postResponse.fullname + '!',
+                                            icon: 'success'
+                                        }).then(() => location.reload());
+                                    } else {
+                                        Swal.fire({
+                                            text: postResponse.error,
+                                            icon: 'error'
+                                        });
+                                    }
+                                },
+                                error: function () {
+                                    Swal.fire({
+                                        text: 'Failed to attend lab',
+                                        icon: 'error'
+                                    });
+                                }
+                            });
+                        }
+                    },
+                    error: function () {
+                        Swal.fire({
+                            text: 'Failed to check attendance',
+                            icon: 'error'
+                        });
+                    }
+                });
+            });
+
+            // Fetch and update DataTable on page load
+            fetchAttendingData();
+
+            // Fetch and update summary data on page load
+            fetchSummaryData();
+        });
+    </script>
+
+</body>
+
+</html>
