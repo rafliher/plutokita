@@ -1,5 +1,49 @@
 <header>
     <div class="container-fluid">
-        <img src="/images/banner.png" alt="Banner" style="max-height: 100px;">
+        <a href="/">
+            <img src="/images/banner.png" alt="Banner" style="max-height: 100px;">
+        </a>
     </div>
 </header>
+
+<script>
+    // Check if the authorization cookie exists
+    function checkAuthorizationCookie() {
+        const cookies = document.cookie.split(';');
+        for (const cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'authorization' && value) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const authorizationCookieExists = checkAuthorizationCookie();
+
+        const headerContainer = document.querySelector('header>.container-fluid');
+
+        if (headerContainer && authorizationCookieExists) {
+            const logoutButton = document.createElement('button');
+            logoutButton.classList.add('btn', 'btn-danger');
+            logoutButton.innerText = 'Logout';
+
+            logoutButton.addEventListener('click', function () {
+                // Destroy the authorization cookie
+                document.cookie = 'authorization=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+                // Reload the page
+                location.reload();
+            });
+
+            const div = document.createElement('div');
+            div.style.float = 'right';
+            div.style.marginTop = '20px';
+            div.appendChild(logoutButton);
+
+            headerContainer.appendChild(div);
+        }
+    });
+
+</script>

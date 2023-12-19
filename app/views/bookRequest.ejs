@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Pengajuan Peminjaman | PLUTO KITA</title>
+    <%- include('templates/heads') %>
+
+    <style>
+        .dataTables_wrapper {
+            padding: 15px 20px;
+            border-radius: 10px;
+            background-color: white;
+            margin-bottom: 20px;
+        }
+
+        .drag-drop-area {
+            border: dashed 3px grey;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        span.greenHighlight {
+            color: white;
+            background-color: green;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-weight: 400;
+        }
+
+        span.redHighlight {
+            color: white;
+            background-color: red;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-weight: 400;
+        }
+
+        span.blueHighlight {
+            color: white;
+            background-color: blue;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-weight: 400;
+        }
+    </style>
+</head>
+
+<body>
+
+    <%- include('templates/header', { user: {} }); %>
+
+    <!-- Main Content -->
+    <div class="container-fluid d-flex" style="padding-left: 0; padding-right: 0; min-height: calc(100vh - 200px); background-color: #dedede;">
+        <%- include('templates/sidebar', { activeSidebar: 'bookRequest' }) %>
+        <div class="col-10">
+            <div style="margin: 10px; padding: 10px; border-radius: 5px;background-color: #efefef;">
+                <div class="container d-flex justify-content-between mt-3">
+                    <h3>Pengajuan Peminjaman Workstation</h3>
+                </div>
+
+                <!-- Booking Request Table -->
+                <table id="bookingRequestTable" class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Workstation</th>
+                            <th>NPM</th>
+                            <th>Nama</th>
+                            <th>Waktu Mulai</th>
+                            <th>Waktu Selesai</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- DataTable content will be added dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <%- include('templates/footer') %>
+    <%- include('templates/scripts') %>
+    <script>
+        $(document).ready(function () {
+            // Function to fetch booking request data
+            function fetchBookingRequestData() {
+                $.ajax({
+                    type: 'GET',
+                    url: '/api/booking',
+                    data: { requestOnly: 1 },
+                    success: function (response) {
+                        // Populate DataTable with the fetched data
+                        $('#bookingRequestTable tbody').empty(); // Clear existing rows
+                        if (response.data && response.data.length > 0) {
+                            response.data.forEach(function (booking) {
+                                $('#bookingRequestTable tbody').append(`
+                                    <tr>
+                                        <td>${booking.id}</td>
+                                        <td>${booking.workstationId}</td>
+                                        <td>${booking.cadetNpm}</td>
+                                        <td>${booking.cadet ? booking.cadet.fullname : '-'}</td>
+                                        <td>${booking.startTime}</td>
+                                        <td>${booking.endTime}</td>
+                                        <td>
+                                            <button class="btn btn-success" onclick="acceptBooking('${booking.id}')">Terima</button>
+                                            <button class="btn btn-danger" onclick="denyBooking('${booking.id}')">Tolak</button>
+                                        </td>
+                                    </tr>
+                                `);
+                            });
+                            // Initialize DataTable
+                            $('#bookingRequestTable').DataTable();
+                        }
+                    },
+                    error: function () {
+                        console.error('Failed to fetch booking request data.');
+                    }
+                });
+            }
+
+            // Function to handle accepting a booking request
+            window.acceptBooking = function (id) {
+                // Send a request to the endpoint to accept the booking
+                fetch(`/api/booking/${id}/status/accepted`, {
+                    method: 'PATCH',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success alert
+                        Swal.fire({
+                            title: 'Berhasil',
+                            text: "Pengajuan diterima!",
+                            icon: 'success'
+                        }).then(() => {
+                            // Refresh the booking request data after successful acceptance
+                            fetchBookingRequestData();
+                        });
+                    } else {
+                        // Show error alert
+                        Swal.fire({
+                            title: 'Gagal',
+                            text: data.message,
+                            icon: 'error'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error accepting booking:', error);
+                    // Show error alert
+                    Swal.fire({
+                        title: 'Gagal',
+                        text: 'Terjadi kesalahan saat menerima booking.',
+                        icon: 'error'
+                    });
+                });
+            };
+
+            // Function to handle denying a booking request
+            window.denyBooking = function (id) {
+                // Send a request to the endpoint to deny the booking
+                fetch(`/api/booking/${id}/status/denied`, {
+                    method: 'PATCH',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success alert
+                        Swal.fire({
+                            title: 'Berhasil',
+                            text: 'Pengajuan berhasil ditolak',
+                            icon: 'success'
+                        }).then(() => {
+                            // Refresh the booking request data after successful denial
+                            fetchBookingRequestData();
+                        });
+                    } else {
+                        // Show error alert
+                        Swal.fire({
+                            title: 'Gagal',
+                            text: data.message,
+                            icon: 'error'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error denying booking:', error);
+                    // Show error alert
+                    Swal.fire({
+                        title: 'Gagal',
+                        text: 'Terjadi kesalahan saat menolak booking.',
+                        icon: 'error'
+                    });
+                });
+            };
+
+            // Fetch and update DataTable on page load
+            fetchBookingRequestData();
+        });
+    </script>
+</body>
+
+</html>

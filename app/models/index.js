@@ -24,6 +24,7 @@ db.attendance = require("./attendance.js")(sequelize, Sequelize);
 db.inventory = require("./inventory.js")(sequelize, Sequelize);
 db.category = require("./category.js")(sequelize, Sequelize);
 db.workstation = require("./workstation.js")(sequelize, Sequelize);
+db.booking = require("./booking.js")(sequelize, Sequelize);
 
 db.cadet.hasMany(db.attendance);
 db.attendance.belongsTo(db.cadet);
@@ -34,11 +35,10 @@ db.inventory.belongsTo(db.category)
 db.workstation.hasMany(db.inventory, { foreignkey: {allowNull: true}})
 db.inventory.belongsTo(db.workstation)
 
+db.cadet.hasMany(db.booking);
+db.booking.belongsTo(db.cadet);
 
-// const RelyingParty_Group = sequelize.define('relyingParty_groups', {}, { timestamps: false });
-// db.relyingParty.belongsToMany(db.group, { through: RelyingParty_Group });
-// db.group.belongsToMany(db.relyingParty, { through: RelyingParty_Group });
-
-// db.relyingParty_group = RelyingParty_Group
+db.workstation.hasMany(db.booking);
+db.booking.belongsTo(db.workstation);
 
 module.exports = db;

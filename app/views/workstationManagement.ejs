@@ -22,6 +22,30 @@
             flex-direction: column;
             align-items: center;
         }
+
+        span.greenHighlight {
+            color: white;
+            background-color: green;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-weight: 400;
+        }
+
+        span.redHighlight {
+            color: white;
+            background-color: red;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-weight: 400;
+        }
+
+        span.blueHighlight {
+            color: white;
+            background-color: blue;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-weight: 400;
+        }
     </style>
 </head>
 
@@ -30,7 +54,7 @@
     <%- include('templates/header', { user: {} }); %>
 
     <!-- Main Content -->
-    <div class="container-fluid d-flex" style="padding-left: 0; min-height: calc(100vh - 200px); background-color: #dedede;">
+    <div class="container-fluid d-flex" style="padding-left: 0; padding-right: 0; min-height: calc(100vh - 200px); background-color: #dedede;">
         <%- include('templates/sidebar', { activeSidebar: 'workstationManagement' }) %>
         <div class="col-10">
             <div style="margin: 10px; padding: 10px; border-radius: 5px;background-color: #efefef;">
@@ -46,7 +70,8 @@
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Location</th>
+                            <th>Lokasi</th>
+                            <th>Status</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -76,6 +101,7 @@
                                     <tr>
                                         <td>${workstation.id}</td>
                                         <td>${workstation.location.charAt(0).toUpperCase() + workstation.location.slice(1)}</td>
+                                        <td>${workstation.isBooked?"<span class='blueHighlight'>Sedang dipinjam</span>":"<span class='greenHighlight'>Tersedia</span>"}</td>
                                         <td>
                                             <button class="btn btn-danger" onclick="deleteWorkstation('${workstation.id}')">Hapus</button>
                                             <button class="btn btn-info" onclick="updateWorkstation('${workstation.id}','${workstation.location}')">Sunting</button>
@@ -144,7 +170,46 @@
                 });
             };
 
-            window.updateWorkstation = function (id, location) {
+            window.updateWorkstation = async function (id, location) {
+                // Function to fetch associated inventories
+                function fetchAssociatedInventories(workstationId) {
+                    return fetch(`/api/workstation/${workstationId}/inventories`)
+                        .then(response => response.json())
+                        .then(data => data.data)
+                        .catch(error => {
+                            console.error('Error fetching associated inventories:', error);
+                            return [];
+                        });
+                }
+                // Fetch associated inventories
+                const inventories = await fetchAssociatedInventories(id);
+
+                // Build HTML for the inventories table
+                const inventoriesTableHTML = inventories.length > 0
+                    ? `
+                        <table class="table mt-3">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nama</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${inventories.map(inventory => `
+                                    <tr>
+                                        <td>${inventory.id}</td>
+                                        <td>${inventory.name}</td>
+                                        <td>
+                                            <button class="btn btn-danger" onclick="removeInventory('${inventory.id}', '${id}')">Hapus</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `
+                    : '<p>Tidak ada inventaris terkait.</p>';
+
                 Swal.fire({
                     title: 'Sunting workstation',
                     html: `
@@ -156,6 +221,9 @@
                             <option value="dewan" ${location === 'dewan' ? 'selected' : ''}>Dewan</option>
                             <option value="tengah" ${location === 'tengah' ? 'selected' : ''}>Tengah</option>
                         </select>
+                        <p style="margin: 10px 0px 5px 0px;">Komponen</p>
+                        ${inventoriesTableHTML}
+                        <button class="btn btn-success mt-3" id="addInventoryBtn" onclick="addInventory('${id}')">Tambah Komponen</button>
                     `,
                     focusConfirm: false,
                     confirmButtonText: 'Simpan',
@@ -173,7 +241,7 @@
                             }),
                         })
                             .then(response => response.json())
-                            .then(data => {
+                            .then(async data => {
                                 if (data.success) {
                                     // Show success alert
                                     Swal.fire({
@@ -199,7 +267,131 @@
                     },
                     allowOutsideClick: () => !Swal.isLoading(),
                 });
-            };           
+            };
+
+            async function fetchAvailableInventories() {
+                return fetch('/api/inventory')
+                    .then(response => response.json())
+                    .then(data => data.data.filter(inventory => inventory.workstationId === null))
+                    .catch(error => {
+                        console.error('Error fetching available inventories:', error);
+                        return [];
+                    });
+            }
+
+            // Function to add a new inventory (component)
+            window.addInventory = async function (workstationId) {
+                // Fetch available inventories
+                const availableInventories = await fetchAvailableInventories();
+
+                // Build options for the select element
+                const inventoryOptions = availableInventories.map(inventory => `
+                    <option value="${inventory.id}">${inventory.name} (ID: ${inventory.id})</option>
+                `).join('');
+
+                Swal.fire({
+                    title: 'Tambah Komponen',
+                    html: `
+                        <p style="margin: 10px 0px 5px 0px;">ID Workstation</p>
+                        <input type="text" id="workstationId" value="${workstationId}" class="swal2-input" disabled style="width: 350px; margin-top: 0px;">
+                        <p style="margin: 10px 0px 5px 0px;">Pilih Inventaris</p>
+                        <select id="inventoryId" class="swal2-input" style="width: 350px; margin: 0px 0px 10px 0px;">
+                            ${inventoryOptions}
+                        </select>
+                    `,
+                    focusConfirm: false,
+                    confirmButtonText: 'Simpan',
+                    showCancelButton: true,
+                    cancelButtonText: 'Batal',
+                    preConfirm: () => {
+                        const selectedInventoryId = document.getElementById('inventoryId').value;
+                        return fetch(`/api/workstation/${workstationId}/inventories`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                inventoryId: selectedInventoryId,
+                            }),
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Show success alert
+                                    Swal.fire({
+                                        title: 'Berhasil',
+                                        text: data.message,
+                                        icon: 'success'
+                                    }).then(() => {
+                                        // Refresh the associated inventories data after successful addition
+                                        window.updateWorkstation(workstationId, ''); // Refresh the update modal
+                                    });
+                                } else {
+                                    // Show error alert
+                                    Swal.fire({
+                                        title: 'Gagal',
+                                        text: data.message,
+                                        icon: 'error'
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                Swal.showValidationMessage(`Request failed: ${error}`);
+                            });
+                    },
+                    allowOutsideClick: () => !Swal.isLoading(),
+                });
+            };
+
+            // Function to remove an associated inventory
+            window.removeInventory = function (inventoryId, workstationId) {
+                Swal.fire({
+                    text: 'Apakah ingin menghapus inventaris ini?',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true,
+                    icon: 'warning',
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        // Send DELETE request to /api/workstation/${workstationId}/inventories/${inventoryId}
+                        fetch(`/api/workstation/${workstationId}/inventories/${inventoryId}`, {
+                            method: 'DELETE',
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Show success alert
+                                    Swal.fire({
+                                        title: 'Berhasil',
+                                        text: data.message,
+                                        icon: 'success'
+                                    }).then(() => {
+                                        // Refresh the associated inventories data after successful deletion
+                                        window.updateWorkstation(workstationId, ''); // Refresh the update modal
+                                    });
+                                } else {
+                                    // Show error alert
+                                    Swal.fire({
+                                        title: 'Gagal',
+                                        text: data.message,
+                                        icon: 'error'
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error deleting inventory:', error);
+                                // Show error alert
+                                Swal.fire({
+                                    title: 'Gagal',
+                                    text: 'Terjadi kesalahan saat menghapus inventaris.',
+                                    icon: 'error'
+                                });
+                            });
+                    }
+                });
+            };
+           
             // Fetch and update DataTable on page load
             fetchWorkstationData();
 

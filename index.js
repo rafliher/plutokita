@@ -53,6 +53,7 @@ require('./app/routes/auth')(app);
 require('./app/routes/cadet')(app);
 require('./app/routes/inventory')(app);
 require('./app/routes/workstation')(app);
+require('./app/routes/booking')(app);
 
 if(process.env.SSL_MODE == 'ON'){
 	const https_options = {

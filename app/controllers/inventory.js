@@ -11,7 +11,7 @@ const xlsx = require('xlsx');
 const fs = require('fs-extra');
 
 exports.list = async (req, res) => {
-    const inventories = await Inventory.findAll({include: [Category, Workstation]});
+    const inventories = await Inventory.findAll({include: [Category]});
     return res.status(200).send({ data: inventories });
 };
 

@@ -21,7 +21,7 @@
     <%- include('templates/header', {user: {}}); %>
 
     <!-- Main Content -->
-    <div class="container-fluid d-flex" style="padding-left: 0; min-height: calc(100vh - 200px); background-color: #dedede;">
+    <div class="container-fluid d-flex" style="padding-left: 0; padding-right: 0; min-height: calc(100vh - 200px); background-color: #dedede;">
         <%- include('templates/sidebar', {activeSidebar: 'attendance'}) %>
         <div class="col-10">
             <div style="margin: 10px; padding: 10px; border-radius: 5px;background-color: #efefef;">
@@ -68,6 +68,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js" integrity="sha512-csNcFYJniKjJxRWRV1R7fvnXrycHP6qDR21mgz1ZP55xY5d+aHLfo9/FcGDQLfn2IfngbAHd8LdfsagcCqgTcQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
+        let dataTableObject = null
         // Function to format today's date
         function getFormattedToday() {
             const today = new Date();
@@ -106,6 +107,11 @@
         function updateAttendanceTable(data) {
             const tableBody = $('#attendanceTable tbody');
             tableBody.empty();
+            if(dataTableObject){
+                dataTableObject.clear();
+                dataTableObject.destroy();
+                dataTableObject = null
+            }
 
             // Populate DataTable with the fetched data
             data.forEach(function (attendance) {
@@ -119,8 +125,10 @@
                 `);
             });
 
+
             // Initialize DataTable
-            $('#attendanceTable').DataTable({
+            dataTableObject = $('#attendanceTable').DataTable({
+                // destroy: true,
                 order: [[2, 'asc']]
             });
         }

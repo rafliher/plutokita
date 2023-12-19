@@ -12,12 +12,24 @@ exports.main = (req, res) => {
     res.render('main', {});
 };
 
+exports.book = (req, res) => {
+    res.render('book', {});
+};
+
 exports.dashboard = (req, res) => {
     res.render('dashboard');
 };
 
 exports.attendance = (req, res) => {
     res.render('attendance');
+};
+
+exports.bookRequest = (req, res) => {
+    res.render('bookRequest');
+};
+
+exports.bookData = (req, res) => {
+    res.render('bookData');
 };
 
 exports.cadetManagement = (req, res) => {

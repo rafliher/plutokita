@@ -15,6 +15,8 @@ module.exports = function(app) {
 
     app.get("/", controller.main);
 
+    app.get("/book", controller.book);
+
     app.get("/admin", [
         authJwt.verifyTokenFromCookies
     ], controller.dashboard);
@@ -22,6 +24,14 @@ module.exports = function(app) {
     app.get("/attendance", [
         authJwt.verifyTokenFromCookies
     ], controller.attendance);
+    
+    app.get("/bookrequest", [
+        authJwt.verifyTokenFromCookies
+    ], controller.bookRequest);
+    
+    app.get("/bookdata", [
+        authJwt.verifyTokenFromCookies
+    ], controller.bookData);
 
     app.get("/cadetmanagement", [
         authJwt.verifyTokenFromCookies

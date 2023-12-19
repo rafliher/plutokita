@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Peminjaman Inventaris | PLUTO KITA</title>
+    <%- include('templates/heads') %>
+
+    <style>
+        span.greenHighlight {
+            color: white;
+            background-color: green;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-weight: 400;
+        }
+
+        span.redHighlight {
+            color: white;
+            background-color: red;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-weight: 400;
+        }
+
+        span.blueHighlight {
+            color: white;
+            background-color: blue;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-weight: 400;
+        }
+    </style>
+</head>
+
+<body>
+
+    <%- include('templates/header', {user: {}}); %>
+
+    <!-- Main Content -->
+    <div class="container-fluid" style="min-height: calc(100vh - 200px); background-color: #dedede;">
+        <div class="row">
+            <div class="col-12">
+                <div style="margin: 10px; padding: 10px; border-radius: 5px;background-color: #efefef;">
+                    <h3>Peminjaman Workstation</h3>
+
+                    <!-- Workstation Table -->
+                    <table id="workstationTable" class="table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Location</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- DataTable content will be added dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Status Peminjaman Table -->
+                <div style="margin: 10px; padding: 10px; border-radius: 5px;background-color: #efefef;">
+                    <h3>Status Peminjaman</h3>
+
+                    <table id="statusPeminjamanTable" class="table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Workstation</th>
+                                <th>NPM</th>
+                                <th>Nama</th>
+                                <th>Waktu Mulai</th>
+                                <th>Waktu Selesai</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- DataTable content will be added dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%- include('templates/footer') %>
+    <%- include('templates/scripts') %>
+    <script>
+        $(document).ready(function () {
+            // Function to fetch workstation data
+            function fetchWorkstationData() {
+                $.ajax({
+                    type: 'GET',
+                    url: '/api/workstation',
+                    success: function (response) {
+                        // Populate DataTable with the fetched data
+                        if (response.data && response.data.length > 0) {
+                            $('#workstationTable tbody').empty(); // Clear existing rows
+                            response.data.forEach(function (workstation) {
+                                $('#workstationTable tbody').append(`
+                                    <tr>
+                                        <td>${workstation.id}</td>
+                                        <td>${workstation.location.charAt(0).toUpperCase() + workstation.location.slice(1)}</td>
+                                        <td>${workstation.isBooked ? "<span class='redHighlight'>Tidak tersedia</span>" : "<span class='greenHighlight'>Tersedia</span>"}</td>
+                                        <td>
+                                            <button class="btn btn-info" onclick="showWorkstation('${workstation.id}','${workstation.location}',${workstation.isBooked})">Lihat</button>
+                                            <!-- You can add other action buttons as needed -->
+                                        </td>
+                                    </tr>
+                                `);
+                            });
+                            // Initialize DataTable
+                            $('#workstationTable').DataTable();
+                        }
+                    },
+                    error: function () {
+                        console.error('Failed to fetch workstation data.');
+                    }
+                });
+            }
+
+            // Function to fetch booking status data
+            function fetchBookingStatusData() {
+                $.ajax({
+                    type: 'GET',
+                    url: '/api/booking',
+                    data: { deniedAndAcceptedOnly: 1 },
+                    success: function (response) {
+                        // Populate DataTable with the fetched data
+                        if (response.data && response.data.length > 0) {
+                            $('#statusPeminjamanTable tbody').empty(); // Clear existing rows
+                            response.data.forEach(function (booking) {
+                                $('#statusPeminjamanTable tbody').append(`
+                                    <tr>
+                                        <td>${booking.id}</td>
+                                        <td>${booking.workstationId}</td>
+                                        <td>${booking.cadetNpm}</td>
+                                        <td>${booking.cadet ? booking.cadet.fullname : '-'}</td>
+                                        <td>${booking.startTime}</td>
+                                        <td>${booking.endTime}</td>
+                                        <td>
+                                            ${booking.status === 'waiting' ? `<span class='blueHighlight'>Menunggu</span>` : (booking.status === 'accepted' ? `<span class='greenHighlight'>Diterima</span>` : `<span class='redHighlight'>Ditolak</span>`)}
+                                        </td>
+                                    </tr>
+                                `);
+                            });
+                            // Initialize DataTable
+                            $('#statusPeminjamanTable').DataTable();
+                        }
+                    },
+                    error: function () {
+                        console.error('Failed to fetch booking status data.');
+                    }
+                });
+            }
+
+            window.showWorkstation = async function (id, location, isBooked) {
+                // Function to fetch associated inventories
+                function fetchAssociatedInventories(workstationId) {
+                    return fetch(`/api/workstation/${workstationId}/inventories`)
+                        .then(response => response.json())
+                        .then(data => data.data)
+                        .catch(error => {
+                            console.error('Error fetching associated inventories:', error);
+                            return [];
+                        });
+                }
+                // Fetch associated inventories
+                const inventories = await fetchAssociatedInventories(id);
+
+                // Build HTML for the inventories table
+                const inventoriesTableHTML = inventories.length > 0
+                    ? `
+                        <table class="table mt-3">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nama</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${inventories.map(inventory => `
+                                    <tr>
+                                        <td>${inventory.id}</td>
+                                        <td>${inventory.name}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `
+                    : '<p>Tidak ada inventaris terkait.</p>';
+
+                Swal.fire({
+                    title: 'Data Workstation',
+                    html: `
+                        ${isBooked ? "<span class='redHighlight'>Tidak tersedia</span>" : "<span class='greenHighlight'>Tersedia</span>"}
+
+                        <p style="margin: 10px 0px 5px 0px;">ID</p>
+                        <input type="text" id="workstationId" value="${id}" class="swal2-input" disabled style="width: 350px; margin-top: 0px;">
+                        <p style="margin: 10px 0px 5px 0px;">Lokasi</p>
+                        <input type="text" id="workstationLocation" value="${location.charAt(0).toUpperCase() + location.slice(1)}" class="swal2-input" disabled style="width: 350px; margin-top: 0px;">
+                        <p style="margin: 10px 0px 5px 0px;">Komponen</p>
+                        ${inventoriesTableHTML}
+                    `,
+                    focusConfirm: false,
+                    showConfirmButton: !isBooked,
+                    confirmButtonText: 'Ajukan Peminjaman',
+                    showCancelButton: true,
+                    cancelButtonText: 'Tutup',
+                    allowOutsideClick: () => !Swal.isLoading(),
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({
+                            title: 'Ajukan Peminjaman',
+                            html: `
+                                <form id="bookingForm">
+                                    <p style="margin: 10px 0px 5px 0px;">NPM</p>
+                                    <input type="number" id="npm" class="swal2-input" required style="width: 350px; margin-top: 0px;">
+
+                                    <p style="margin: 10px 0px 5px 0px;">Waktu Mulai</p>
+                                    <input type="datetime-local" id="startTime" class="swal2-input" required style="width: 350px; margin-top: 0px;">
+
+                                    <p style="margin: 10px 0px 5px 0px;">Waktu Selesai</p>
+                                    <input type="datetime-local" id="endTime" class="swal2-input" required style="width: 350px; margin-top: 0px;">
+                                </form>
+                            `,
+                            focusConfirm: false,
+                            showConfirmButton: true,
+                            confirmButtonText: 'Ajukan Peminjaman',
+                            showCancelButton: true,
+                            cancelButtonText: 'Tutup',
+                            preConfirm: async () => {
+                                // Handle form submission
+                                const npm = document.getElementById('npm').value;
+                                const startTime = document.getElementById('startTime').value;
+                                const endTime = document.getElementById('endTime').value;
+
+                                try {
+                                    // Send data to the /api/booking endpoint
+                                    const response = await fetch('/api/booking', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        },
+                                        body: JSON.stringify({
+                                            workstationId: id,
+                                            cadetNpm: npm,
+                                            startTime: startTime,
+                                            endTime: endTime,
+                                        }),
+                                    });
+
+                                    const responseData = await response.json();
+
+                                    // Show response modal
+                                    Swal.fire({
+                                        title: responseData.success ? 'Berhasil' : 'Gagal',
+                                        text: responseData.success ? 'Peminjaman berhasil diajukan, harap tunggu konfirmasi petugas' : "error: " + responseData.message,
+                                        icon: responseData.success ? 'success' : 'error',
+                                    });
+                                } catch (error) {
+                                    console.error('Error submitting booking request:', error);
+                                    Swal.fire({
+                                        title: 'Gagal',
+                                        text: 'Terjadi kesalahan saat mengajukan peminjaman.',
+                                        icon: 'error',
+                                    });
+                                }
+                            },
+                            allowOutsideClick: () => !Swal.isLoading(),
+                        });
+                    }
+                });
+            };
+
+            // Fetch and update DataTables on page load
+            fetchWorkstationData();
+            fetchBookingStatusData();
+        });
+    </script>
+</body>
+
+</html>

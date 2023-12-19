@@ -11,7 +11,7 @@ module.exports = function (app) {
         next();
     });
 
-    app.get('/api/workstation', [authJwt.verifyToken], workstationController.list);
+    app.get('/api/workstation', workstationController.list);
 
     app.post('/api/workstation', [
         authJwt.verifyToken,
@@ -25,5 +25,28 @@ module.exports = function (app) {
         body('location').isLength({ min: 1 }),
     ], workstationController.update);
 
-    app.delete('/api/workstation/:id', [authJwt.verifyToken, param('id').isNumeric()], workstationController.destroy);
+    app.delete('/api/workstation/:id', [
+        authJwt.verifyToken,
+        param('id').isLength({ min: 1 })
+    ], workstationController.destroy);
+
+    // Get associated inventories for a workstation
+    app.get('/api/workstation/:id/inventories', [
+        param('id').isLength({ min: 1 })
+    ], workstationController.getAssociatedInventories);
+
+    // Add associated inventory to a workstation
+    app.post('/api/workstation/:id/inventories', [
+        authJwt.verifyToken,
+        param('id').isLength({ min: 1 }),
+        body('inventoryId').notEmpty().isString(),
+    ], workstationController.addAssociatedInventory);
+
+    // Remove associated inventory from a workstation
+    app.delete('/api/workstation/:id/inventories/:inventoryId', [
+        authJwt.verifyToken,
+        param('id').isLength({ min: 1 }),
+        param('inventoryId').isLength({ min: 1 })
+    ], workstationController.removeAssociatedInventory);
+
 };
