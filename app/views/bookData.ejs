@@ -57,8 +57,20 @@
     <div class="container-fluid d-flex" style="padding-left: 0; padding-right: 0; min-height: calc(100vh - 200px); background-color: #dedede;">
         <%- include('templates/sidebar', { activeSidebar: 'bookData' }) %>
         <div class="col-10">
+            <div class="container card mt-3 p-3">
+                <div class="row mx-2 justify-content-between">
+                    <h4>Data peminjaman bulanan</h4>
+    
+                    <div class="form-inline">
+                        <label for="monthYearSelect" class="mr-2">Bulan:</label>
+                        <input type="month" class="form-control" id="monthYearSelect" onchange="refreshData()">
+                    </div>
+                </div>
+                <canvas id="monthlyBookingChart" width="600" height="150"></canvas>
+            </div>
+
             <div style="margin: 10px; padding: 10px; border-radius: 5px;background-color: #efefef;">
-                <div class="container d-flex justify-content-between mt-3">
+                <div class="container-fluid d-flex justify-content-between mt-3">
                     <h3>Data Peminjaman Workstation</h3>
                 </div>
 
@@ -85,44 +97,134 @@
 
     <%- include('templates/footer') %>
     <%- include('templates/scripts') %>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        $(document).ready(function () {
-            // Function to fetch booking request data
-            function fetchBookingRequestData() {
-                $.ajax({
-                    type: 'GET',
-                    url: '/api/booking',
-                    data: { acceptedOnly: 1 },
-                    success: function (response) {
-                        // Populate DataTable with the fetched data
-                        if (response.data && response.data.length > 0) {
-                            $('#bookingDataTable tbody').empty(); // Clear existing rows
-                            response.data.forEach(function (booking) {
-                                $('#bookingDataTable tbody').append(`
-                                    <tr>
-                                        <td>${booking.id}</td>
-                                        <td>${booking.workstationId}</td>
-                                        <td>${booking.cadetNpm}</td>
-                                        <td>${booking.cadet ? booking.cadet.fullname : '-'}</td>
-                                        <td>${booking.startTime}</td>
-                                        <td>${booking.endTime}</td>
-                                        <td>`+
-                                            (booking.status == 'done' ? 
-                                                '<span class="greenHighlight">Selesai</span>':
-                                                `<button class="btn btn-info" onclick="setBookingAsDone('${booking.id}')">Selesaikan</button>`)
-                                        +`</td>
-                                    </tr>
-                                `);
-                            });
-                            // Initialize DataTable
-                            $('#bookingDataTable').DataTable();
-                        }
-                    },
-                    error: function () {
-                        console.error('Failed to fetch booking request data.');
+        let monthlyBookingChart = null;
+
+        function getFormattedToday() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = (today.getMonth() + 1).toString().padStart(2, '0');
+            const day = today.getDate().toString().padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function refreshData() {
+            fetchBookingRequestData();
+            fetchMonthlyBookingData();
+        }
+
+        // Function to fetch monthly booking data
+        function fetchMonthlyBookingData() {
+            const selectedMonthYear = document.getElementById('monthYearSelect').value;
+            const [selectedYear, selectedMonth] = selectedMonthYear.split('-');
+
+            $.ajax({
+                type: 'GET',
+                url: `/api/booking/monthly?month=${selectedMonth}&year=${selectedYear}`,
+                success: function (response) {
+                    // Create a bar chart using Chart.js
+                    createMonthlyBookingChart(response.data);
+                },
+                error: function () {
+                    console.error('Failed to fetch monthly booking data.');
+                }
+            });
+        }
+
+        // Function to create a bar chart for monthly booking
+        function createMonthlyBookingChart(data) {
+            const ctx = document.getElementById('monthlyBookingChart')
+
+            // Extract labels and data for the chart
+            const labels = data.map(entry => entry.date);
+            const bookingCounts = data.map(entry => entry.bookingCount);
+
+            const chartData = {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Jumlah Peminjaman',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1,
+                        data: bookingCounts,
                     }
-                });
+                ],
+            };
+
+            if (monthlyBookingChart) {
+                monthlyBookingChart.destroy()
             }
+
+            monthlyBookingChart = new Chart(ctx, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    scales: {
+                        y: {
+                            ticks: { precision: 0 },
+                            title: {
+                                display: true,
+                                text: 'Jumlah',
+                            },
+                        },
+                        x: {
+                            ticks: { precision: 0 },
+                            title: {
+                                display: true,
+                                text: 'Tanggal',
+                            },
+                        }
+                    }
+                }
+            });
+        }
+
+        // Function to fetch booking request data
+        function fetchBookingRequestData() {
+            $.ajax({
+                type: 'GET',
+                url: '/api/booking',
+                data: { acceptedOnly: 1 },
+                success: function (response) {
+                    // Populate DataTable with the fetched data
+                    if (response.data && response.data.length > 0) {
+                        $('#bookingDataTable tbody').empty(); // Clear existing rows
+                        response.data.forEach(function (booking) {
+                            $('#bookingDataTable tbody').append(`
+                                <tr>
+                                    <td>${booking.id}</td>
+                                    <td>${booking.workstationId}</td>
+                                    <td>${booking.cadetNpm}</td>
+                                    <td>${booking.cadet ? booking.cadet.fullname : '-'}</td>
+                                    <td>${booking.startTime}</td>
+                                    <td>${booking.endTime}</td>
+                                    <td>`+
+                                        (booking.status == 'done' ? 
+                                            '<span class="greenHighlight">Selesai</span>':
+                                            `<button class="btn btn-info" onclick="setBookingAsDone('${booking.id}')">Selesaikan</button>`)
+                                    +`</td>
+                                </tr>
+                            `);
+                        });
+                        // Initialize DataTable
+                        $('#bookingDataTable').DataTable();
+                    }
+                },
+                error: function () {
+                    console.error('Failed to fetch booking request data.');
+                }
+            });
+        }
+
+        $(document).ready(function () {
+            const formattedToday = getFormattedToday();
+            document.getElementById('monthYearSelect').value = formattedToday.substring(0, 7);
+
+            // Fetch and update DataTable and Chart on page load
+            refreshData();
+
 
             // Function to handle accepting a booking request
             window.setBookingAsDone = function (id) {

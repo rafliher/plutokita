@@ -212,3 +212,56 @@ exports.summary = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+exports.checkAndUpdateLeaveTime = async () => {
+    try {
+        // Find all attendance records with leaveTime as null
+        const attendancesToUpdate = await Attendance.findAll({
+            where: {
+                leaveTime: null
+            }
+        });
+
+        // Update leaveTime for each record with the current time
+        const updatePromises = attendancesToUpdate.map(async (attendance) => {
+            attendance.leaveTime = new Date();
+            await attendance.save();
+        });
+
+        await Promise.all(updatePromises);
+
+        console.log('[checkAndUpdateLeaveTime] Leave time updated for records with null leave time.');
+    } catch (error) {
+        console.error('[checkAndUpdateLeaveTime] Error:', error);
+    }
+};
+
+exports.getMonthlyAttendance = async (req, res) => {
+    try {
+        // Get the specified month and year from query parameters or use the current month and year if not provided
+        const specifiedMonth = req.query.month ? parseInt(req.query.month, 10) : new Date().getMonth() + 1;
+        const specifiedYear = req.query.year ? parseInt(req.query.year, 10) : new Date().getFullYear();
+
+        // Fetch monthly attendance data
+        const monthlyAttendance = await Attendance.findAll({
+            attributes: [
+                [db.sequelize.fn('DATE', db.sequelize.col('enterTime')), 'date'],
+                [db.sequelize.fn('COUNT', db.sequelize.col('id')), 'enterCount'],
+                [db.sequelize.fn('SUM', db.sequelize.literal('CASE WHEN leaveTime IS NULL THEN 1 ELSE 0 END')), 'leaveCount'],
+            ],
+            where: {
+                [Op.and]: [
+                    db.sequelize.where(db.sequelize.fn('MONTH', db.sequelize.col('enterTime')), specifiedMonth),
+                    db.sequelize.where(db.sequelize.fn('YEAR', db.sequelize.col('enterTime')), specifiedYear),
+                ],
+            },
+            group: [db.sequelize.fn('DATE', db.sequelize.col('enterTime'))],
+            order: [[db.sequelize.fn('DATE', db.sequelize.col('enterTime')), 'ASC']],
+        });
+
+        return res.status(200).json({ data: monthlyAttendance });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+};

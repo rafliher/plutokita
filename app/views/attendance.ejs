@@ -24,6 +24,13 @@
     <div class="container-fluid d-flex" style="padding-left: 0; padding-right: 0; min-height: calc(100vh - 200px); background-color: #dedede;">
         <%- include('templates/sidebar', {activeSidebar: 'attendance'}) %>
         <div class="col-10">
+
+            <div class="container card mt-3 p-3">
+                <h4>Data pengunjung bulanan</h4>
+
+                <canvas id="monthlyAttendanceChart" width="600" height="150"></canvas>
+            </div>
+
             <div style="margin: 10px; padding: 10px; border-radius: 5px;background-color: #efefef;">
                 <div class="d-flex justify-content-between align-items-center">
                     <h4 id="attendanceTitle">Absensi ${formattedToday}</h4>
@@ -38,7 +45,7 @@
                 <!-- Date Select -->
                 <div class="form-group mt-3">
                     <label for="dateSelect">Tanggal Absensi</label>
-                    <input type="date" class="form-control" id="dateSelect" onchange="loadAttendanceData()">
+                    <input type="date" class="form-control" id="dateSelect" onchange="refreshData()">
                     <div class="input-group-append">
                         <div class="input-group-text" id="loader" style="display: none;">
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -67,8 +74,10 @@
     <%- include('templates/scripts') %>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js" integrity="sha512-csNcFYJniKjJxRWRV1R7fvnXrycHP6qDR21mgz1ZP55xY5d+aHLfo9/FcGDQLfn2IfngbAHd8LdfsagcCqgTcQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         let dataTableObject = null
+        let monthlyAttendanceChart = null
         // Function to format today's date
         function getFormattedToday() {
             const today = new Date();
@@ -76,6 +85,11 @@
             const month = (today.getMonth() + 1).toString().padStart(2, '0');
             const day = today.getDate().toString().padStart(2, '0');
             return `${year}-${month}-${day}`;
+        }
+
+        function refreshData() {
+            loadAttendanceData()
+            loadMonthlyAttendanceGraph()
         }
 
         // Function to fetch attendance data
@@ -140,6 +154,7 @@
 
             // Load attendance data on page load
             loadAttendanceData();
+            loadMonthlyAttendanceGraph();
         });
 
         // Function to download attendance data
@@ -228,6 +243,77 @@
                 }
             });
         }
+
+        // Function to fetch monthly attendance data
+        function loadMonthlyAttendanceGraph() {
+            const selectedDate = document.getElementById('dateSelect').value || getFormattedToday();
+            const selectedMonth = new Date(selectedDate).getMonth() + 1;
+            const selectedYear = new Date(selectedDate).getFullYear();
+
+            // Fetch data from the server
+            $.ajax({
+                type: 'GET',
+                url: `/api/attendance/monthly?month=${selectedMonth}&year=${selectedYear}`,
+                success: function (response) {
+                    // Create a bar chart using Chart.js
+                    createMonthlyAttendanceGraph(response.data);
+                },
+                error: function () {
+                    console.error('Failed to fetch monthly attendance data.');
+                }
+            });
+        }
+
+        // Function to create a bar chart for monthly attendance
+        function createMonthlyAttendanceGraph(data) {
+            const ctx = document.getElementById('monthlyAttendanceChart')
+            
+            // Extract labels and data for the chart
+            const labels = data.map(entry => entry.date);
+            const enterCounts = data.map(entry => entry.enterCount);
+            const leaveCounts = data.map(entry => entry.leaveCount);
+
+            const chartData = {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Jumlah pengunjung',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1,
+                        data: enterCounts,
+                    }
+                ],
+            };
+
+            if (monthlyAttendanceChart) {
+                monthlyAttendanceChart.destroy()
+            }
+
+            monthlyAttendanceChart = new Chart(ctx, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    scales: {
+                        y: {
+                            ticks: { precision: 0 },
+                            title: {
+                                display: true,
+                                text: 'Jumlah',
+                            },
+						},
+                        x: {
+                            ticks: { precision: 0 },
+                            title: {
+                                display: true,
+                                text: 'Tanggal',
+                            },
+						}
+                    }
+                }
+            });
+        }
+
 
         // Function to show loader
         function showLoader() {

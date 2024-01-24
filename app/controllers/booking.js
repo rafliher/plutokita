@@ -95,3 +95,32 @@ exports.updateStatus = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 };
+
+exports.getMonthlyBookingData = async (req, res) => {
+    try {
+        const { month, year } = req.query;
+
+        const startDate = new Date(year, month - 1, 1); // Note: Month is 0-based
+        const endDate = new Date(year, month, 0);
+
+        const bookingData = await Booking.findAll({
+            attributes: [
+                [db.sequelize.literal('DATE(startTime)'), 'date'],
+                [db.sequelize.fn('COUNT', db.sequelize.literal('DISTINCT `bookings`.`id`')), 'bookingCount']
+            ],
+            where: {
+                startTime: {
+                    [Op.between]: [startDate, endDate]
+                },
+                status: ['accepted', 'done']
+            },
+            group: ['date'],
+            raw: true,
+        });
+
+        return res.status(200).json({ success: true, data: bookingData });
+    } catch (error) {
+        console.error('Error fetching monthly booking data:', error);
+        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+};

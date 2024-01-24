@@ -1,5 +1,5 @@
 const controller = require("../controllers/attendance");
-// const { authJwt, role } = require("../middleware");
+const { authJwt } = require("../middleware");
 const { body, query } = require('express-validator');
 
 module.exports = function(app) {
@@ -32,4 +32,8 @@ module.exports = function(app) {
     app.get('/api/attendance/summary', [
         query('date').optional().isISO8601().toDate(),
     ], controller.summary);
+
+    app.get('/api/attendance/monthly', [
+        authJwt.verifyToken
+    ], controller.getMonthlyAttendance);
 };

@@ -12,7 +12,6 @@ module.exports = function(app) {
     });
 
     app.get('/api/booking', [
-        authJwt.verifyToken
     ], controller.list);
 
     app.post('/api/booking', [
@@ -25,6 +24,10 @@ module.exports = function(app) {
     app.patch('/api/booking/:id/status/:status', [
         param('id').isInt().withMessage('Booking ID must be an integer'),
         param('status').isIn(['accepted', 'denied', 'done']).withMessage('Invalid status. It must be either "accepted" or "denied"'),
+        authJwt.verifyToken
     ], controller.updateStatus);
 
+    app.get('/api/booking/monthly', [
+        authJwt.verifyToken
+    ], controller.getMonthlyBookingData);
 };

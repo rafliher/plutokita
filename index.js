@@ -77,6 +77,23 @@ app.listen(PORT, HOST, () => {
 	console.log(`Server is running on  http://${HOST}:${PORT}.`);
 });
 
+const cron = require('node-cron');
+const { checkAndUpdateLeaveTime } = require("./app/controllers/attendance");
+checkAndUpdateLeaveTime()
+
+// Schedule cron job to run every day at 23:59
+cron.schedule('59 23 * * *', async () => {
+    try {
+        // Call the function to check and update leave time
+		await checkAndUpdateLeaveTime()
+    } catch (error) {
+        console.error('[Scheduled Task] Error:', error);
+    }
+}, {
+    timezone: 'Asia/Jakarta', // Adjust the timezone as needed
+    scheduled: true,
+});
+
 const User = db.user
 const Category = db.category
 const bcrypt = require("bcryptjs");
