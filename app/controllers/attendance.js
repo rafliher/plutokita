@@ -45,6 +45,12 @@ exports.attend = async (req, res) => {
         if (!cadet) {
             return res.status(404).send({ message: "NPM tidak ditemukan" });
         }
+        
+        const attendance = await Attendance.findOne({ where: { cadetNpm: req.body.npm, leaveTime: null } });
+
+        if (attendance) {
+            return res.status(422).send({ message: "Kamu sudah absen" });
+        }
 
         // Insert into Attendance with cadetNpm and enterTime
         const result = await Attendance.create({
