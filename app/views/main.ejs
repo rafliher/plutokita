@@ -258,10 +258,10 @@
 
         function showLoading() {
             Swal.fire({
-            title: 'Loading...',
+            text: 'Please wait...',
             allowOutsideClick: false,
             showConfirmButton: false,
-            onOpen: () => {
+            didOpen: () => {
                 Swal.showLoading();
             }
             });
