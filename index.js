@@ -79,7 +79,6 @@ app.listen(PORT, HOST, () => {
 
 const cron = require('node-cron');
 const { checkAndUpdateLeaveTime } = require("./app/controllers/attendance");
-checkAndUpdateLeaveTime()
 
 // Schedule cron job to run every day at 23:59
 cron.schedule('59 23 * * *', async () => {
